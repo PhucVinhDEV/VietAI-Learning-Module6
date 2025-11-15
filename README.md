@@ -1,6 +1,10 @@
 # LTSF-Linear: Long-Term Time Series Forecasting
 
+[![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/PhucVinhDEV/VietAI-Learning-Module6)
+
 Implementation of Linear, NLinear, and DLinear models for long-term time series forecasting, applied to Vietnamese stock market data (VIC).
+
+**Team**: VietAI-Learning
 
 ## 📋 Overview
 
@@ -11,6 +15,7 @@ This project implements three simple yet powerful baseline models for time serie
 - **DLinear**: Decomposition Linear separating trend and seasonality
 
 **Key Features:**
+
 - ✅ Clean, modular Python codebase following PEP-8
 - ✅ Production-ready data pipeline
 - ✅ Multiple input window sizes (7, 30, 120, 480 days)
@@ -21,12 +26,14 @@ This project implements three simple yet powerful baseline models for time serie
 ## 🚀 Quick Start
 
 ### 1. Clone Repository
+
 ```bash
-git clone https://github.com/yourusername/ltsf-linear.git
-cd ltsf-linear
+git clone https://github.com/PhucVinhDEV/VietAI-Learning-Module6.git
+cd VietAI-Learning-Module6
 ```
 
 ### 2. Create Virtual Environment
+
 ```bash
 # Create venv
 python -m venv venv
@@ -38,16 +45,19 @@ venv\Scripts\activate     # Windows
 ```
 
 ### 3. Install Dependencies
+
 ```bash
 pip install -r requirements.txt
 ```
 
 ### 4. Download Data
+
 ```bash
 python scripts/download_data.py
 ```
 
 ### 5. Run Training
+
 ```bash
 # Train all models
 python scripts/train.py
@@ -64,6 +74,7 @@ python scripts/train.py --model linear --seq-len 30
 - pip
 
 ### Step-by-Step
+
 ```bash
 # 1. Create and activate virtual environment
 python -m venv venv
@@ -76,12 +87,13 @@ pip install -r requirements.txt
 python scripts/download_data.py
 
 # 4. Verify installation
-python -c "from src.models import Linear; print('✓ Installation successful')"
+python -c "from src.model import Linear; print('✓ Installation successful')"
 ```
 
 ### Development Setup
 
 For development with testing and code formatting tools:
+
 ```bash
 # Install package in editable mode
 pip install -e .
@@ -96,13 +108,13 @@ black src/ tests/
 ## 🎯 Usage
 
 ### Data Pipeline
+
 ```python
-from src.data.dataloader import DataPipeline
+from src.data import DataPipeline
 
 # Initialize pipeline
 pipeline = DataPipeline(
     data_path="data/raw/VIC.csv",
-    target_col="close_log",
     seq_lengths=[7, 30, 120, 480],
     pred_len=7,
     batch_size=32
@@ -113,12 +125,15 @@ dataloaders = pipeline.run()
 
 # Access dataloaders
 train_loader = dataloaders['30d']['train']
+val_loader = dataloaders['30d']['val']
+test_loader = dataloaders['30d']['test']
 ```
 
 ### Training Models
+
 ```python
-from src.models import Linear, NLinear, DLinear
-from src.training.trainer import Trainer
+from src.model import Linear, NLinear, DLinear
+from src.training import Trainer
 
 # Initialize model
 model = Linear(seq_len=30, pred_len=7)
@@ -136,17 +151,19 @@ history = trainer.fit(num_epochs=50)
 ```
 
 ### Making Predictions
+
 ```python
-from src.pipeline import ForecastPipeline
+from src.pineline.forecast_pipeline import ForecastPipeline
 
 # Load trained model
-pipeline = ForecastPipeline.from_checkpoint('checkpoints/linear_30d.pt')
+pipeline = ForecastPipeline.from_checkpoint('experiments/checkpoints/linear_30d.pt')
 
 # Predict
 predictions = pipeline.predict(input_data)
 ```
 
 ## 📁 Project Structure
+
 ```
 ltsf-linear/
 ├── README.md
@@ -161,23 +178,27 @@ ltsf-linear/
 │   ├── data/
 │   │   ├── dataset.py
 │   │   ├── dataloader.py
-│   │   └── preprocessor.py
+│   │   └── preprocesser.py
 │   │
-│   ├── models/
+│   ├── model/
 │   │   ├── base.py
 │   │   ├── linear.py
-│   │   ├── nlinear.py
-│   │   └── dlinear.py
+│   │   ├── n_linear.py
+│   │   └── d_linear.py
 │   │
 │   ├── training/
 │   │   ├── trainer.py
 │   │   ├── evaluator.py
 │   │   └── callbacks.py
 │   │
-│   └── utils/
-│       ├── metrics.py
-│       ├── decomposition.py
-│       └── visualization.py
+│   ├── utils/
+│   │   ├── metrics.py
+│   │   ├── decomposition.py
+│   │   └── visualization.py
+│   │
+│   └── pineline/
+│       ├── __init__.py
+│       └── forecast_pipeline.py
 │
 ├── scripts/
 │   ├── download_data.py
@@ -190,8 +211,8 @@ ltsf-linear/
 │   └── 03_full_training.ipynb
 │
 ├── tests/
+│   ├── test_data_simple.py
 │   ├── test_models.py
-│   ├── test_data.py
 │   └── test_utils.py
 │
 └── experiments/
@@ -205,6 +226,7 @@ ltsf-linear/
 ### Linear
 
 Simple linear mapping from input sequence to output sequence:
+
 ```
 ŷ = Wx + b
 ```
@@ -215,6 +237,7 @@ Simple linear mapping from input sequence to output sequence:
 ### NLinear
 
 Normalized linear with distribution shift handling:
+
 ```
 x' = x - x_last
 ŷ' = Wx' + b
@@ -227,6 +250,7 @@ x' = x - x_last
 ### DLinear
 
 Decomposition-based linear model:
+
 ```
 x_trend, x_seasonal = decompose(x)
 ŷ_trend = W_t × x_trend + b_t
@@ -241,28 +265,35 @@ x_trend, x_seasonal = decompose(x)
 
 Training on VIC stock data (2020-2025):
 
-| Model | Input Length | MSE ↓ | MAE ↓ | RMSE ↓ | R² ↑ |
-|-------|--------------|-------|-------|--------|------|
-| Linear | 30d | 0.023 | 0.112 | 0.152 | 0.87 |
-| NLinear | 30d | 0.021 | 0.108 | 0.145 | 0.89 |
-| DLinear | 30d | 0.019 | 0.101 | 0.138 | 0.91 |
+| Model   | Input Length | MSE ↓ | MAE ↓ | RMSE ↓ | R² ↑ |
+| ------- | ------------ | ----- | ----- | ------ | ---- |
+| Linear  | 30d          | 0.023 | 0.112 | 0.152  | 0.87 |
+| NLinear | 30d          | 0.021 | 0.108 | 0.145  | 0.89 |
+| DLinear | 30d          | 0.019 | 0.101 | 0.138  | 0.91 |
 
-*Results on 7-day ahead forecasting*
+_Results on 7-day ahead forecasting_
 
 ## 🛠️ Development
 
 ### Run Tests
+
 ```bash
+# Run simple test
+python tests/test_data_simple.py
+
+# Or with pytest
 pytest tests/ -v
 ```
 
 ### Code Formatting
+
 ```bash
 black src/ tests/
 flake8 src/ tests/
 ```
 
 ### Type Checking
+
 ```bash
 mypy src/
 ```
@@ -270,11 +301,13 @@ mypy src/
 ## 📝 Scripts
 
 ### Download Data
+
 ```bash
 python scripts/download_data.py
 ```
 
 ### Train Models
+
 ```bash
 # Train all models with all input lengths
 python scripts/train.py
@@ -287,6 +320,7 @@ python scripts/train.py --resume checkpoints/linear_30d.pt
 ```
 
 ### Evaluate
+
 ```bash
 python scripts/evaluate.py --checkpoint checkpoints/dlinear_120d.pt
 ```
@@ -296,15 +330,18 @@ python scripts/evaluate.py --checkpoint checkpoints/dlinear_120d.pt
 ### Jupyter Notebooks
 
 Explore the project interactively:
+
 ```bash
 jupyter notebook
 ```
 
 Available notebooks:
+
 - `01_data_exploration.ipynb` - Data analysis and visualization
 - `02_from_scratch_models.ipynb` - Model implementation from scratch
 - `03_full_training.ipynb` - Complete training pipeline
 - `04_results_analysis.ipynb` - Results comparison
+- `05_analysis_and_critique.ipynb` - Analysis and critique of model results
 
 ## 🤝 Contributing
 
@@ -320,28 +357,36 @@ Contributions are welcome! Please:
 
 This project is licensed under the MIT License - see [LICENSE](LICENSE) file for details.
 
+## 👥 Team
+
+**VietAI-Learning**
+
+- Nguyễn Tấn Dũng
+- Nguyễn Quốc Huy
+- Ngô Ngọc Anh
+- Trần Phúc Vinh
+- Vũ Nguyệt Hằng
+
+**Repository**: [https://github.com/PhucVinhDEV/VietAI-Learning-Module6](https://github.com/PhucVinhDEV/VietAI-Learning-Module6)
+
 ## 🙏 Acknowledgments
 
 - Based on the paper: [Are Transformers Effective for Time Series Forecasting?](https://arxiv.org/abs/2205.13504)
 - Dataset: VIC stock data from Vietnamese stock market
 - Course: AI VIET NAM - AI COURSE 2025
 
-## 📧 Contact
-
-- Author: Your Name
-- Email: your.email@example.com
-- Project Link: [https://github.com/yourusername/ltsf-linear](https://github.com/yourusername/ltsf-linear)
-
 ## 🐛 Troubleshooting
 
 ### Common Issues
 
 **`ModuleNotFoundError: No module named 'src'`**
+
 ```bash
 pip install -e .
 ```
 
 **`gdown` download fails**
+
 ```bash
 # Upgrade gdown
 pip install --upgrade gdown
@@ -352,6 +397,7 @@ pip install --upgrade gdown
 ```
 
 **PyTorch CUDA issues**
+
 ```bash
 # Check CUDA availability
 python -c "import torch; print(torch.cuda.is_available())"
@@ -361,6 +407,7 @@ pip install torch --index-url https://download.pytorch.org/whl/cpu
 ```
 
 ## 📚 References
+
 ```bibtex
 @article{zeng2023transformers,
   title={Are Transformers Effective for Time Series Forecasting?},
