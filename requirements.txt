@@ -1,0 +1,26 @@
+# Core
+pandas
+numpy
+scipy
+# Deep Learning
+torch
+torchvision
+# ML
+scikit-learn
+statsmodels
+# Data Download
+gdown
+# Visualization
+matplotlib
+seaborn
+# Utils
+tqdm
+pyyaml
+# Logging
+tensorboard
+# Development
+jupyter
+ipython
+pytest
+black
+flake8
