@@ -6,10 +6,21 @@ import matplotlib.pyplot as plt
 import torch
 from pathlib import Path
 import sys
+import os
 
 # Add project root to path
-project_root = Path(__file__).parent.parent
-sys.path.insert(0, str(project_root))
+# Always calculate from file location: src/streamlit_app.py -> go up 2 levels
+_current_file = Path(__file__).resolve()
+# If we're in src/streamlit_app.py, go up 2 levels to project root
+if _current_file.parent.name == 'src':
+    project_root = _current_file.parent.parent
+else:
+    # Fallback: assume we're at project root already
+    project_root = Path.cwd()
+
+# Ensure project root is in path
+if str(project_root) not in sys.path:
+    sys.path.insert(0, str(project_root))
 
 from src.data import load_fpt_data, prepare_data, TimeSeriesDataset
 from src.model import GRUModel
