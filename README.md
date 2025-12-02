@@ -1,27 +1,75 @@
-# LTSF-Linear: Long-Term Time Series Forecasting
+# 📈 VietAI Learning Module 6: Time Series Forecasting
 
 [![GitHub](https://img.shields.io/badge/GitHub-Repository-blue?logo=github)](https://github.com/PhucVinhDEV/VietAI-Learning-Module6)
+[![Python](https://img.shields.io/badge/Python-3.8+-blue?logo=python)](https://www.python.org/)
+[![PyTorch](https://img.shields.io/badge/PyTorch-Latest-orange?logo=pytorch)](https://pytorch.org/)
+[![Streamlit](https://img.shields.io/badge/Streamlit-App-red?logo=streamlit)](https://streamlit.io/)
 
-Implementation of Linear, NLinear, and DLinear models for long-term time series forecasting, applied to Vietnamese stock market data (VIC).
+Repository cho module học tập về Time Series Forecasting, bao gồm implementation của **GRU model** dự đoán giá cổ phiếu FPT với giao diện Streamlit tương tác.
 
-**Team**: VietAI-Learning
+**Team**: VietAI-Learning  
+**Course**: AI VIET NAM - AI COURSE 2025
 
-## 📋 Overview
+---
 
-This project implements three simple yet powerful baseline models for time series forecasting:
+## 📋 Table of Contents
 
-- **Linear**: Direct linear mapping from historical window to future predictions
-- **NLinear**: Normalized Linear with distribution shift handling
-- **DLinear**: Decomposition Linear separating trend and seasonality
+- [Overview](#-overview)
+- [Features](#-features)
+- [Quick Start](#-quick-start)
+- [Installation](#-installation)
+- [Project Structure](#-project-structure)
+- [FPT GRU Stock Prediction](#-fpt-gru-stock-prediction)
+  - [Train Model](#1-train-model)
+  - [Run Streamlit App](#2-run-streamlit-app)
+  - [Usage Guide](#3-usage-guide)
+- [Deployment](#-deployment)
+- [Configuration](#-configuration)
+- [Reproducibility](#-reproducibility)
+- [Troubleshooting](#-troubleshooting)
+- [Team](#-team)
+- [References](#-references)
 
-**Key Features:**
+---
 
-- ✅ Clean, modular Python codebase following PEP-8
-- ✅ Production-ready data pipeline
-- ✅ Multiple input window sizes (7, 30, 120, 480 days)
-- ✅ 7-day ahead forecasting
-- ✅ Comprehensive evaluation metrics
-- ✅ Visualization tools
+## 🎯 Overview
+
+Project này implement **GRU (Gated Recurrent Unit)** model cho time series forecasting, được áp dụng để dự đoán giá cổ phiếu FPT. Project bao gồm:
+
+- ✅ **Modular codebase** với cấu trúc rõ ràng
+- ✅ **PyTorch-based** model training
+- ✅ **Streamlit web app** với giao diện tương tác
+- ✅ **Checkpoint system** để save/load model
+- ✅ **Reproducible training** với random seed
+- ✅ **Comprehensive evaluation** metrics (MAPE, MSE, etc.)
+
+---
+
+## ✨ Features
+
+### Model Features
+
+- **GRU Architecture**: Multi-layer GRU với dropout regularization
+- **Early Stopping**: Tự động dừng training khi validation loss không cải thiện
+- **Data Preprocessing**: Log transformation và StandardScaler normalization
+- **Future Prediction**: Dự đoán giá cổ phiếu cho N ngày tới
+
+### App Features
+
+- **Data Visualization**:
+  - Interactive price charts với date range selection
+  - Moving average overlay
+  - Data preview với customizable rows
+- **Model Management**:
+  - Load trained checkpoints
+  - View model metrics và architecture
+  - Training curves visualization
+- **Prediction**:
+  - Generate future predictions
+  - Visualize historical vs predicted prices
+  - Download predictions as CSV
+
+---
 
 ## 🚀 Quick Start
 
@@ -50,21 +98,29 @@ venv\Scripts\activate     # Windows
 pip install -r requirements.txt
 ```
 
-### 4. Download Data
+### 4. Prepare Data
+
+Đảm bảo có file dữ liệu:
+
+- `data/raw/FPT_train.csv`
+
+### 5. Train Model
 
 ```bash
-python scripts/download_data.py
+python scripts/train_fpt_gru.py
 ```
 
-### 5. Run Training
+Model sẽ được lưu tại: `models/fpt_gru/best_model.pt`
+
+### 6. Run Streamlit App
 
 ```bash
-# Train all models
-python scripts/train.py
-
-# Or train specific model
-python scripts/train.py --model linear --seq-len 30
+streamlit run streamlit_app.py
 ```
+
+App sẽ mở tại: `http://localhost:8501`
+
+---
 
 ## 📦 Installation
 
@@ -72,290 +128,351 @@ python scripts/train.py --model linear --seq-len 30
 
 - Python 3.8+
 - pip
+- (Optional) CUDA-capable GPU for faster training
 
-### Step-by-Step
+### Step-by-Step Installation
 
 ```bash
 # 1. Create and activate virtual environment
 python -m venv venv
-source venv/bin/activate  # or venv\Scripts\activate on Windows
+source venv/bin/activate  # Linux/macOS
+# or
+venv\Scripts\activate    # Windows
 
 # 2. Install dependencies
 pip install -r requirements.txt
 
-# 3. Download data
-python scripts/download_data.py
-
-# 4. Verify installation
-python -c "from src.model import Linear; print('✓ Installation successful')"
+# 3. Verify installation
+python -c "import torch; import streamlit; print('✓ Installation successful')"
 ```
 
-### Development Setup
+### Dependencies
 
-For development with testing and code formatting tools:
+Key packages:
 
-```bash
-# Install package in editable mode
-pip install -e .
+- `torch` - Deep learning framework
+- `streamlit` - Web app framework
+- `pandas`, `numpy` - Data manipulation
+- `scikit-learn` - Data preprocessing
+- `matplotlib` - Visualization
+- `tqdm` - Progress bars
 
-# Run tests
-pytest tests/
+Xem đầy đủ trong `requirements.txt`.
 
-# Format code
-black src/ tests/
-```
-
-## 🎯 Usage
-
-### Data Pipeline
-
-```python
-from src.data import DataPipeline
-
-# Initialize pipeline
-pipeline = DataPipeline(
-    data_path="data/raw/VIC.csv",
-    seq_lengths=[7, 30, 120, 480],
-    pred_len=7,
-    batch_size=32
-)
-
-# Run full pipeline
-dataloaders = pipeline.run()
-
-# Access dataloaders
-train_loader = dataloaders['30d']['train']
-val_loader = dataloaders['30d']['val']
-test_loader = dataloaders['30d']['test']
-```
-
-### Training Models
-
-```python
-from src.model import Linear, NLinear, DLinear
-from src.training import Trainer
-
-# Initialize model
-model = Linear(seq_len=30, pred_len=7)
-
-# Create trainer
-trainer = Trainer(
-    model=model,
-    train_loader=train_loader,
-    val_loader=val_loader,
-    device='cuda'
-)
-
-# Train
-history = trainer.fit(num_epochs=50)
-```
-
-### Making Predictions
-
-```python
-from src.pineline.forecast_pipeline import ForecastPipeline
-
-# Load trained model
-pipeline = ForecastPipeline.from_checkpoint('experiments/checkpoints/linear_30d.pt')
-
-# Predict
-predictions = pipeline.predict(input_data)
-```
+---
 
 ## 📁 Project Structure
 
 ```
-ltsf-linear/
-├── README.md
-├── requirements.txt
-├── setup.py
+VietAI-Learning-Module6/
+├── README.md                 # This file
+├── DEPLOY.md                 # Deployment guide
+├── requirements.txt          # Python dependencies
+├── setup.py                  # Package setup
 │
 ├── data/
-│   ├── raw/              # Downloaded data
-│   └── processed/        # Preprocessed data
+│   ├── raw/
+│   │   └── FPT_train.csv     # FPT stock data
+│   └── processed/            # Processed data (if any)
 │
 ├── src/
 │   ├── data/
-│   │   ├── dataset.py
-│   │   ├── dataloader.py
-│   │   └── preprocesser.py
-│   │
+│   │   ├── loader.py         # Data loading utilities
+│   │   └── dataset.py        # PyTorch Dataset class
 │   ├── model/
-│   │   ├── base.py
-│   │   ├── linear.py
-│   │   ├── n_linear.py
-│   │   └── d_linear.py
-│   │
+│   │   └── gru_model.py      # GRU model definition
 │   ├── training/
-│   │   ├── trainer.py
-│   │   ├── evaluator.py
-│   │   └── callbacks.py
-│   │
+│   │   └── trainer.py        # Training loop with early stopping
 │   ├── utils/
-│   │   ├── metrics.py
-│   │   ├── decomposition.py
-│   │   └── visualization.py
-│   │
-│   └── pineline/
-│       ├── __init__.py
-│       └── forecast_pipeline.py
+│   │   ├── config.py         # Configuration & seed setting
+│   │   ├── checkpoint.py     # Save/load model checkpoints
+│   │   └── predict.py        # Prediction utilities
+│   └── streamlit_app.py     # Streamlit application
 │
 ├── scripts/
-│   ├── download_data.py
-│   ├── train.py
-│   └── evaluate.py
+│   └── train_fpt_gru.py     # Training script
+│
+├── models/
+│   └── fpt_gru/
+│       └── best_model.pt    # Trained model checkpoint
 │
 ├── notebooks/
-│   ├── 01_data_exploration.ipynb
-│   ├── 02_from_scratch_models.ipynb
-│   └── 03_full_training.ipynb
+│   └── kaggle-final-version.ipynb  # Jupyter notebook
 │
-├── tests/
-│   ├── test_data_simple.py
-│   ├── test_models.py
-│   └── test_utils.py
+├── .streamlit/
+│   └── config.toml          # Streamlit configuration
 │
-└── experiments/
-    ├── logs/
-    ├── checkpoints/
-    └── results/
+└── streamlit_app.py         # Entry point for Streamlit Cloud
 ```
 
-## 🧪 Models
+---
 
-### Linear
+## 📈 FPT GRU Stock Prediction
 
-Simple linear mapping from input sequence to output sequence:
+### 1. Train Model
 
-```
-ŷ = Wx + b
-```
-
-- **Parameters**: `T × L` (+ T bias)
-- **Complexity**: O(B × T × L)
-
-### NLinear
-
-Normalized linear with distribution shift handling:
-
-```
-x' = x - x_last
-ŷ' = Wx' + b
-ŷ = ŷ' + x_last
-```
-
-- **Use case**: Data with level shifts
-- **Key feature**: Re-centering normalization
-
-### DLinear
-
-Decomposition-based linear model:
-
-```
-x_trend, x_seasonal = decompose(x)
-ŷ_trend = W_t × x_trend + b_t
-ŷ_seasonal = W_s × x_seasonal + b_s
-ŷ = ŷ_trend + ŷ_seasonal
-```
-
-- **Use case**: Data with clear trend/seasonality
-- **Key feature**: Moving average decomposition
-
-## 📊 Results
-
-Training on VIC stock data (2020-2025):
-
-| Model   | Input Length | MSE ↓ | MAE ↓ | RMSE ↓ | R² ↑ |
-| ------- | ------------ | ----- | ----- | ------ | ---- |
-| Linear  | 30d          | 0.023 | 0.112 | 0.152  | 0.87 |
-| NLinear | 30d          | 0.021 | 0.108 | 0.145  | 0.89 |
-| DLinear | 30d          | 0.019 | 0.101 | 0.138  | 0.91 |
-
-_Results on 7-day ahead forecasting_
-
-## 🛠️ Development
-
-### Run Tests
+**Bước quan trọng**: Train model trước khi chạy Streamlit app.
 
 ```bash
-# Run simple test
-python tests/test_data_simple.py
-
-# Or with pytest
-pytest tests/ -v
+python scripts/train_fpt_gru.py
 ```
 
-### Code Formatting
+Script này sẽ:
+
+1. Load data từ `data/raw/FPT_train.csv`
+2. Prepare data (log transform, normalization)
+3. Split train/validation sets
+4. Initialize GRU model
+5. Train với early stopping
+6. Evaluate và tính MAPE
+7. Save checkpoint vào `models/fpt_gru/best_model.pt`
+
+**Output mẫu:**
+
+```
+============================================================
+FPT GRU Model Training
+============================================================
+
+📊 Loading data...
+✅ Data loaded: 1149 records
+
+🔧 Creating datasets...
+✅ Train samples: 999, Val samples: 120
+
+🏗️  Creating model...
+✅ Model created: 25089 parameters
+
+🚀 Training model...
+Training: 100%|████████| 45/45 [00:30<00:00, 1.48it/s, train_loss=0.0012, val_loss=0.0015]
+Early stopping!
+
+📊 Evaluating model...
+✅ Validation MAPE: 2.45%
+✅ Best Val Loss: 0.001456
+
+💾 Saving checkpoint to: models/fpt_gru/best_model.pt
+✅ Checkpoint saved to: models/fpt_gru/best_model.pt
+```
+
+### 2. Run Streamlit App
 
 ```bash
-black src/ tests/
-flake8 src/ tests/
+streamlit run streamlit_app.py
 ```
 
-### Type Checking
+Hoặc từ thư mục `src/`:
 
 ```bash
-mypy src/
+streamlit run src/streamlit_app.py
 ```
 
-## 📝 Scripts
+### 3. Usage Guide
 
-### Download Data
+#### 📊 Tab 1: Data Overview
+
+1. **Load Data**: Click button "Load Data" để load `FPT_train.csv`
+2. **View Metrics**:
+   - Total Records
+   - Date Range
+   - Current Price
+3. **Visualization Options**:
+   - **Date Range**: Chọn "All", "Last 6 months", "Last 1 year", "Last 2 years", hoặc "Last N days"
+   - **Moving Average**: Toggle để hiển thị MA với window size tùy chỉnh
+4. **Price Chart**: Biểu đồ giá đóng cửa theo thời gian
+5. **Data Preview**: Xem preview dữ liệu với số rows có thể chỉnh
+
+#### 📥 Tab 2: Load Model
+
+1. **Load Checkpoint**: Click "Load Checkpoint" để load model từ `models/fpt_gru/best_model.pt`
+2. **Model Metrics**:
+   - Validation MAPE
+   - Best Validation Loss
+   - Final Train/Val Loss
+3. **Model Architecture**:
+   - Input/Output Length
+   - Hidden Size
+   - Number of Layers
+   - Dropout Rate
+4. **Training Configuration**:
+   - Learning Rate
+   - Batch Size
+   - Number of Epochs
+   - Device (CPU/GPU)
+5. **Training Curves**: Biểu đồ training và validation loss
+
+#### 🔮 Tab 3: Predict
+
+1. **Generate Prediction**:
+   - Chỉnh "Days to Predict" trong sidebar (10-200 days)
+   - Click "Generate Prediction"
+2. **Results**:
+   - **Chart**: Biểu đồ Historical vs Predicted prices
+   - **Metrics**:
+     - Current Price
+     - Predicted (Day 1)
+     - Predicted (Final Day)
+     - Total Change %
+   - **Download**: Download predictions dưới dạng CSV
+
+---
+
+## 🚀 Deployment
+
+### Deploy lên Streamlit Cloud
+
+Xem hướng dẫn chi tiết trong [`DEPLOY.md`](DEPLOY.md).
+
+**Tóm tắt nhanh:**
+
+1. **Commit code lên GitHub**:
+
+   ```bash
+   git add .
+   git commit -m "Prepare for deployment"
+   git push origin main
+   ```
+
+2. **Deploy trên Streamlit Cloud**:
+
+   - Truy cập [Streamlit Cloud](https://streamlit.io/cloud)
+   - Đăng nhập bằng GitHub
+   - Click "New app"
+   - Chọn repository và branch
+   - Main file: `streamlit_app.py`
+   - Click "Deploy"
+
+3. **Xử lý Model File**:
+   - Option 1: Commit model vào Git (nếu < 100MB)
+   - Option 2: Dùng Git LFS (cho model lớn)
+   - Option 3: Download model khi deploy (xem `DEPLOY.md`)
+
+---
+
+## ⚙️ Configuration
+
+Model được cấu hình trong `src/utils/config.py`:
+
+```python
+CONFIG = {
+    "input_len": 30,              # Input sequence length
+    "output_len": 1,               # Output length (single step)
+    "total_predict_days": 100,     # Days to predict in future
+    "batch_size": 32,
+    "hidden_size": 64,             # GRU hidden units
+    "num_layers": 2,               # Number of GRU layers
+    "dropout": 0.2,                # Dropout rate
+    "learning_rate": 1e-3,         # Learning rate
+    "num_epochs": 80,              # Max epochs
+    "early_stop_patience": 15,     # Early stopping patience
+    "val_size": 120,               # Validation set size
+    "device": "cuda" or "cpu",     # Auto-detect
+}
+```
+
+**Có thể chỉnh:**
+
+- `total_predict_days`: Trong Streamlit sidebar khi predict
+- Các tham số khác: Sửa trong `src/utils/config.py` và train lại
+
+---
+
+## 🔒 Reproducibility
+
+Model training sử dụng **random seed = 42** để đảm bảo kết quả giống nhau mỗi lần train.
+
+```python
+from src.utils import set_seed, SEED
+
+# Set seed cho tất cả random generators
+set_seed(SEED)  # Sets: random, numpy, torch, cuda, cudnn
+```
+
+**Seed được set cho:**
+
+- Python `random` module
+- NumPy random
+- PyTorch random
+- CUDA random (nếu có GPU)
+- CuDNN deterministic mode
+
+---
+
+## 🐛 Troubleshooting
+
+### Model không load được
+
+**Lỗi**: `FileNotFoundError: Checkpoint not found`
+
+**Giải pháp**:
 
 ```bash
-python scripts/download_data.py
+# Train model trước
+python scripts/train_fpt_gru.py
+
+# Kiểm tra file tồn tại
+ls models/fpt_gru/best_model.pt
 ```
 
-### Train Models
+### Data không load được
+
+**Lỗi**: `FileNotFoundError: Không tìm thấy FPT_train.csv`
+
+**Giải pháp**:
+
+- Đảm bảo file `data/raw/FPT_train.csv` tồn tại
+- App sẽ tự tìm file trong project structure
+- Kiểm tra đường dẫn trong error message
+
+### Import errors
+
+**Lỗi**: `ModuleNotFoundError: No module named 'src'`
+
+**Giải pháp**:
 
 ```bash
-# Train all models with all input lengths
-python scripts/train.py
+# Đảm bảo đang ở thư mục root của project
+cd VietAI-Learning-Module6
 
-# Train specific model
-python scripts/train.py --model linear --seq-len 30 --epochs 50
+# Cài đặt package (nếu có setup.py)
+pip install -e .
 
-# Resume from checkpoint
-python scripts/train.py --resume checkpoints/linear_30d.pt
+# Hoặc chạy với PYTHONPATH
+PYTHONPATH=. streamlit run streamlit_app.py
 ```
 
-### Evaluate
+### CUDA/GPU issues
+
+**Lỗi**: CUDA out of memory hoặc CUDA not available
+
+**Giải pháp**:
 
 ```bash
-python scripts/evaluate.py --checkpoint checkpoints/dlinear_120d.pt
+# Kiểm tra CUDA
+python -c "import torch; print(torch.cuda.is_available())"
+
+# Nếu không có GPU, model sẽ tự động dùng CPU
+# Có thể force CPU trong config:
+# "device": torch.device("cpu")
 ```
 
-## 🔬 Experiments
+### Streamlit app không chạy
 
-### Jupyter Notebooks
+**Lỗi**: Port 8501 already in use
 
-Explore the project interactively:
+**Giải pháp**:
 
 ```bash
-jupyter notebook
+# Dùng port khác
+streamlit run streamlit_app.py --server.port 8502
+
+# Hoặc kill process đang dùng port 8501
+# Windows:
+netstat -ano | findstr :8501
+taskkill /PID <PID> /F
 ```
 
-Available notebooks:
-
-- `01_data_exploration.ipynb` - Data analysis and visualization
-- `02_from_scratch_models.ipynb` - Model implementation from scratch
-- `03_full_training.ipynb` - Complete training pipeline
-- `04_results_analysis.ipynb` - Results comparison
-- `05_analysis_and_critique.ipynb` - Analysis and critique of model results
-
-## 🤝 Contributing
-
-Contributions are welcome! Please:
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit changes (`git commit -m 'Add amazing feature'`)
-4. Push to branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 📄 License
-
-This project is licensed under the MIT License - see [LICENSE](LICENSE) file for details.
+---
 
 ## 👥 Team
 
@@ -369,142 +486,48 @@ This project is licensed under the MIT License - see [LICENSE](LICENSE) file for
 
 **Repository**: [https://github.com/PhucVinhDEV/VietAI-Learning-Module6](https://github.com/PhucVinhDEV/VietAI-Learning-Module6)
 
-## 🙏 Acknowledgments
-
-- Based on the paper: [Are Transformers Effective for Time Series Forecasting?](https://arxiv.org/abs/2205.13504)
-- Dataset: VIC stock data from Vietnamese stock market
-- Course: AI VIET NAM - AI COURSE 2025
-
-## 🐛 Troubleshooting
-
-### Common Issues
-
-**`ModuleNotFoundError: No module named 'src'`**
-
-```bash
-pip install -e .
-```
-
-**`gdown` download fails**
-
-```bash
-# Upgrade gdown
-pip install --upgrade gdown
-
-# Or download manually
-# Visit: https://drive.google.com/file/d/18J_Z8b-qMMj9wm5eGyQ-1nPS16PfRePK/view
-# Save to: data/raw/VIC.csv
-```
-
-**PyTorch CUDA issues**
-
-```bash
-# Check CUDA availability
-python -c "import torch; print(torch.cuda.is_available())"
-
-# Install CPU version if no GPU
-pip install torch --index-url https://download.pytorch.org/whl/cpu
-```
+---
 
 ## 📚 References
 
-```bibtex
-@article{zeng2023transformers,
-  title={Are Transformers Effective for Time Series Forecasting?},
-  author={Zeng, Ailing and Chen, Muxi and Zhang, Lei and Xu, Qiang},
-  journal={arXiv preprint arXiv:2205.13504},
-  year={2023}
-}
-```
+### Papers
+
+- [Are Transformers Effective for Time Series Forecasting?](https://arxiv.org/abs/2205.13504) - Paper về Linear models cho time series
+
+### Documentation
+
+- [PyTorch Documentation](https://pytorch.org/docs/stable/index.html)
+- [Streamlit Documentation](https://docs.streamlit.io/)
+- [scikit-learn Documentation](https://scikit-learn.org/stable/)
+
+### Course
+
+- **AI VIET NAM - AI COURSE 2025**
+
+---
+
+## 📄 License
+
+This project is licensed under the MIT License - see [LICENSE](LICENSE) file for details.
+
+---
+
+## 🙏 Acknowledgments
+
+- Dataset: FPT stock data
+- Course: AI VIET NAM - AI COURSE 2025
+- Framework: PyTorch, Streamlit
+
+---
+
+## 📝 Additional Resources
+
+- [`DEPLOY.md`](DEPLOY.md) - Chi tiết về deployment
+- [`README_STREAMLIT.md`](README_STREAMLIT.md) - Hướng dẫn Streamlit app (nếu có)
+- `notebooks/kaggle-final-version.ipynb` - Jupyter notebook với code gốc
 
 ---
 
 **Happy Forecasting! 📈**
 
----
-
-## 📈 FPT GRU Streamlit App
-
-Ngoài các model Linear/NLinear/DLinear cho VIC, repo còn có một demo **GRU model** dự đoán giá cổ phiếu **FPT** với giao diện **Streamlit**.
-
-### 1. Chuẩn Bị Môi Trường
-
-- Đã tạo và kích hoạt virtualenv như phần Quick Start.
-- Đã cài đặt dependencies chung:
-
-```bash
-pip install -r requirements.txt
-```
-
-Sau đó cài thêm (nếu chưa có):
-
-```bash
-pip install streamlit tqdm
-```
-
-### 2. Chuẩn Bị Dữ Liệu FPT
-
-Đảm bảo có file:
-
-- `data/raw/FPT_train.csv`
-
-App sẽ tự tìm file này, nên chỉ cần đúng đường dẫn/thư mục.
-
-### 3. Chạy Streamlit App
-
-Từ thư mục root của project:
-
-```bash
-streamlit run src/streamlit_app.py
-```
-
-Hoặc nếu bạn đang ở trong thư mục `src`:
-
-```bash
-streamlit run streamlit_app.py
-```
-
-### 4. Hướng Dẫn Sử Dụng (Step-by-step)
-
-- **Tab `Data Overview`**
-
-  - Bấm **Load Data** để đọc `FPT_train.csv`
-  - Xem tổng số bản ghi, khoảng thời gian dữ liệu, giá hiện tại
-  - Xem biểu đồ giá đóng cửa theo thời gian và bảng preview
-
-- **Tab `Train Model`**
-
-  - Chỉnh các tham số trong sidebar:
-    - **Model**: Input Length, Hidden Size, Number of Layers, Dropout
-    - **Training**: Epochs, Learning Rate, Batch Size, Early Stop Patience
-  - Bấm **Prepare Data & Train**:
-    - Chuẩn hóa dữ liệu (log transform)
-    - Chia train/validation
-    - Train GRU với early stopping
-    - Hiển thị training/validation loss + Validation MAPE
-
-- **Tab `Predict`**
-  - Sau khi train xong, bấm **Generate Prediction**:
-    - Dự đoán giá FPT cho `Days to Predict` ngày tới
-    - Hiển thị biểu đồ Historical vs Predicted
-    - Hiển thị các metric: current price, predicted day 1, predicted final, tổng % thay đổi
-    - Cho phép download file CSV kết quả
-
-### 5. Cấu Trúc Liên Quan Đến App
-
-```text
-src/
-├── data/
-│   ├── loader.py          # Load & prepare data FPT
-│   └── dataset.py         # TimeSeriesDataset cho GRU
-├── model/
-│   └── gru_model.py       # GRUModel demo
-├── training/
-│   └── trainer.py         # Training loop + early stopping
-├── utils/
-│   ├── config.py          # Config mặc định cho GRU demo
-│   └── predict.py         # Hàm evaluate & predict future
-└── streamlit_app.py       # Ứng dụng Streamlit
-```
-
-Chi tiết hơn xem thêm `README_STREAMLIT.md`.
+_Nếu có câu hỏi hoặc gặp vấn đề, vui lòng mở issue trên GitHub repository._
