@@ -187,6 +187,11 @@ with tab1:
                 import traceback
                 with st.expander("🔍 Error Details"):
                     st.code(traceback.format_exc())
+        except Exception as e:
+            st.error(f"❌ Error processing data: {e}")
+            import traceback
+            with st.expander("🔍 Error Details"):
+                st.code(traceback.format_exc())
 
 # Tab 2: Load Model
 with tab2:
