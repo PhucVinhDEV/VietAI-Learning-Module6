@@ -2,6 +2,8 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')  # Set non-interactive backend for Streamlit Cloud
 import matplotlib.pyplot as plt
 import torch
 from pathlib import Path
@@ -69,98 +71,122 @@ with tab1:
                 df_processed = prepare_data(df)
                 st.session_state['df_processed'] = df_processed
                 st.success("Data loaded successfully!")
+            except FileNotFoundError as e:
+                st.error(f"❌ File not found: {e}")
+                st.info("💡 Đảm bảo file `data/raw/FPT_train.csv` tồn tại trong repository.")
+                st.code(f"Current directory: {Path.cwd()}\nProject root: {project_root}")
             except Exception as e:
-                st.error(f"Error loading data: {e}")
+                st.error(f"❌ Error loading data: {e}")
+                import traceback
+                with st.expander("🔍 Error Details"):
+                    st.code(traceback.format_exc())
     
     if 'df' in st.session_state:
-        df = st.session_state['df']
-        
-        # Prepare data ngay khi load để đảm bảo consistency
-        if 'df_processed' not in st.session_state:
-            st.session_state['df_processed'] = prepare_data(df)
-        
-        df_processed = st.session_state['df_processed']
-        
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            st.metric("Total Records", len(df_processed))
-        with col2:
-            st.metric("Date Range", f"{df_processed['time'].min().date()} to {df_processed['time'].max().date()}")
-        with col3:
-            st.metric("Current Price", f"${df_processed['close'].iloc[-1]:.2f}")
+        try:
+            df = st.session_state['df']
+            
+            # Prepare data ngay khi load để đảm bảo consistency
+            if 'df_processed' not in st.session_state:
+                df_processed = prepare_data(df)
+                st.session_state['df_processed'] = df_processed
+            else:
+                df_processed = st.session_state['df_processed']
+            
+            col1, col2, col3 = st.columns(3)
+            with col1:
+                st.metric("Total Records", len(df_processed))
+            with col2:
+                st.metric("Date Range", f"{df_processed['time'].min().date()} to {df_processed['time'].max().date()}")
+            with col3:
+                st.metric("Current Price", f"${df_processed['close'].iloc[-1]:.2f}")
+            
+            # View options
+            col_view1, col_view2 = st.columns(2)
 
-        # View options
-        st.subheader("View Options")
-        col_view1, col_view2 = st.columns(2)
+            with col_view1:
+                range_mode = st.selectbox(
+                    "Date range",
+                    ["All", "Last 6 months", "Last 1 year", "Last 2 years", "Last N days"],
+                    index=1,
+                )
+                n_days = None
+                if range_mode == "Last N days":
+                    n_days = st.slider("N days", min_value=30, max_value=365 * 3, value=180, step=30)
 
-        with col_view1:
-            range_mode = st.selectbox(
-                "Date range",
-                ["All", "Last 6 months", "Last 1 year", "Last 2 years", "Last N days"],
-                index=1,
-            )
-            n_days = None
-            if range_mode == "Last N days":
-                n_days = st.slider("N days", min_value=30, max_value=365 * 3, value=180, step=30)
+            with col_view2:
+                show_ma = st.checkbox("Show Moving Average", value=True)
+                ma_window = st.slider("MA window (days)", min_value=5, max_value=60, value=20, step=5)
 
-        with col_view2:
-            show_ma = st.checkbox("Show Moving Average", value=True)
-            ma_window = st.slider("MA window (days)", min_value=5, max_value=60, value=20, step=5)
+            # Filter by date range
+            df_plot = df_processed.copy()
+            max_date = df_plot["time"].max()
+            if range_mode == "Last 6 months":
+                df_plot = df_plot[df_plot["time"] >= max_date - pd.Timedelta(days=180)]
+            elif range_mode == "Last 1 year":
+                df_plot = df_plot[df_plot["time"] >= max_date - pd.Timedelta(days=365)]
+            elif range_mode == "Last 2 years":
+                df_plot = df_plot[df_plot["time"] >= max_date - pd.Timedelta(days=365 * 2)]
+            elif range_mode == "Last N days" and n_days is not None:
+                df_plot = df_plot[df_plot["time"] >= max_date - pd.Timedelta(days=n_days)]
 
-        # Filter by date range
-        df_plot = df_processed.copy()
-        max_date = df_plot["time"].max()
-        if range_mode == "Last 6 months":
-            df_plot = df_plot[df_plot["time"] >= max_date - pd.Timedelta(days=180)]
-        elif range_mode == "Last 1 year":
-            df_plot = df_plot[df_plot["time"] >= max_date - pd.Timedelta(days=365)]
-        elif range_mode == "Last 2 years":
-            df_plot = df_plot[df_plot["time"] >= max_date - pd.Timedelta(days=365 * 2)]
-        elif range_mode == "Last N days" and n_days is not None:
-            df_plot = df_plot[df_plot["time"] >= max_date - pd.Timedelta(days=n_days)]
+            # Compute moving average if needed
+            if show_ma and len(df_plot) >= ma_window:
+                df_plot["close_ma"] = df_plot["close"].rolling(window=ma_window).mean()
+            else:
+                df_plot["close_ma"] = np.nan
 
-        # Compute moving average if needed
-        if show_ma and len(df_plot) >= ma_window:
-            df_plot["close_ma"] = df_plot["close"].rolling(window=ma_window).mean()
-        else:
-            df_plot["close_ma"] = np.nan
+            # Price chart with options
+            st.subheader("Price Chart")
+            try:
+                if len(df_plot) == 0:
+                    st.warning("⚠️ No data to display for selected date range.")
+                else:
+                    fig, ax = plt.subplots(figsize=(12, 5))
+                    ax.plot(df_plot["time"], df_plot["close"], label="Close Price", linewidth=1.5, color="tab:blue")
+                    if show_ma and df_plot["close_ma"].notna().any():
+                        ax.plot(
+                            df_plot["time"],
+                            df_plot["close_ma"],
+                            label=f"MA ({ma_window}d)",
+                            linewidth=1.5,
+                            color="tab:orange",
+                        )
+                    ax.set_xlabel("Date")
+                    ax.set_ylabel("Price (VND)")
+                    ax.set_title("FPT Stock Close Price Over Time")
+                    ax.legend()
+                    ax.grid(True, alpha=0.3)
+                    st.pyplot(fig, use_container_width=True)
+                    plt.close(fig)  # Close figure to free memory
+            except Exception as e:
+                st.error(f"❌ Error rendering chart: {e}")
+                import traceback
+                with st.expander("🔍 Error Details"):
+                    st.code(traceback.format_exc())
 
-        # Price chart with options
-        st.subheader("Price Chart")
-        fig, ax = plt.subplots(figsize=(12, 5))
-        ax.plot(df_plot["time"], df_plot["close"], label="Close Price", linewidth=1.5, color="tab:blue")
-        if show_ma and df_plot["close_ma"].notna().any():
-            ax.plot(
-                df_plot["time"],
-                df_plot["close_ma"],
-                label=f"MA ({ma_window}d)",
-                linewidth=1.5,
-                color="tab:orange",
-            )
-        ax.set_xlabel("Date")
-        ax.set_ylabel("Price (VND)")
-        ax.set_title("FPT Stock Close Price Over Time")
-        ax.legend()
-        ax.grid(True, alpha=0.3)
-        st.pyplot(fig)
-
-        # Data preview controls
-        st.subheader("Data Preview")
-        preview_rows = st.slider("Number of rows to preview", min_value=10, max_value=200, value=20, step=10)
-        
-        # Dùng df gốc cho preview (có đầy đủ các cột)
-        df = st.session_state['df']
-        df_preview = df[df["time"].isin(df_plot["time"])].tail(preview_rows)
-        
-        # Chỉ hiển thị các cột có sẵn
-        available_cols = ["time", "close"]
-        if "open" in df_preview.columns:
-            available_cols.extend(["open", "high", "low", "volume"])
-        
-        st.dataframe(
-            df_preview[available_cols],
-            use_container_width=True,
-        )
+            # Data preview controls
+            st.subheader("Data Preview")
+            try:
+                preview_rows = st.slider("Number of rows to preview", min_value=10, max_value=200, value=20, step=10)
+                
+                # Dùng df gốc cho preview (có đầy đủ các cột)
+                df = st.session_state['df']
+                df_preview = df[df["time"].isin(df_plot["time"])].tail(preview_rows)
+                
+                # Chỉ hiển thị các cột có sẵn
+                available_cols = ["time", "close"]
+                if "open" in df_preview.columns:
+                    available_cols.extend(["open", "high", "low", "volume"])
+                
+                st.dataframe(
+                    df_preview[available_cols],
+                    use_container_width=True,
+                )
+            except Exception as e:
+                st.error(f"❌ Error displaying data preview: {e}")
+                import traceback
+                with st.expander("🔍 Error Details"):
+                    st.code(traceback.format_exc())
 
 # Tab 2: Load Model
 with tab2:
