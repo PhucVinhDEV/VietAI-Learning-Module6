@@ -13,6 +13,8 @@ gdown
 # Visualization
 matplotlib
 seaborn
+# Web App
+streamlit
 # Utils
 tqdm
 pyyaml

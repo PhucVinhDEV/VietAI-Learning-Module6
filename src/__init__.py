@@ -1,0 +1,2 @@
+"""FPT Stock Prediction Package."""
+

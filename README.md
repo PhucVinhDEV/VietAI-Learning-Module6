@@ -420,3 +420,91 @@ pip install torch --index-url https://download.pytorch.org/whl/cpu
 ---
 
 **Happy Forecasting! 📈**
+
+---
+
+## 📈 FPT GRU Streamlit App
+
+Ngoài các model Linear/NLinear/DLinear cho VIC, repo còn có một demo **GRU model** dự đoán giá cổ phiếu **FPT** với giao diện **Streamlit**.
+
+### 1. Chuẩn Bị Môi Trường
+
+- Đã tạo và kích hoạt virtualenv như phần Quick Start.
+- Đã cài đặt dependencies chung:
+
+```bash
+pip install -r requirements.txt
+```
+
+Sau đó cài thêm (nếu chưa có):
+
+```bash
+pip install streamlit tqdm
+```
+
+### 2. Chuẩn Bị Dữ Liệu FPT
+
+Đảm bảo có file:
+
+- `data/raw/FPT_train.csv`
+
+App sẽ tự tìm file này, nên chỉ cần đúng đường dẫn/thư mục.
+
+### 3. Chạy Streamlit App
+
+Từ thư mục root của project:
+
+```bash
+streamlit run src/streamlit_app.py
+```
+
+Hoặc nếu bạn đang ở trong thư mục `src`:
+
+```bash
+streamlit run streamlit_app.py
+```
+
+### 4. Hướng Dẫn Sử Dụng (Step-by-step)
+
+- **Tab `Data Overview`**
+
+  - Bấm **Load Data** để đọc `FPT_train.csv`
+  - Xem tổng số bản ghi, khoảng thời gian dữ liệu, giá hiện tại
+  - Xem biểu đồ giá đóng cửa theo thời gian và bảng preview
+
+- **Tab `Train Model`**
+
+  - Chỉnh các tham số trong sidebar:
+    - **Model**: Input Length, Hidden Size, Number of Layers, Dropout
+    - **Training**: Epochs, Learning Rate, Batch Size, Early Stop Patience
+  - Bấm **Prepare Data & Train**:
+    - Chuẩn hóa dữ liệu (log transform)
+    - Chia train/validation
+    - Train GRU với early stopping
+    - Hiển thị training/validation loss + Validation MAPE
+
+- **Tab `Predict`**
+  - Sau khi train xong, bấm **Generate Prediction**:
+    - Dự đoán giá FPT cho `Days to Predict` ngày tới
+    - Hiển thị biểu đồ Historical vs Predicted
+    - Hiển thị các metric: current price, predicted day 1, predicted final, tổng % thay đổi
+    - Cho phép download file CSV kết quả
+
+### 5. Cấu Trúc Liên Quan Đến App
+
+```text
+src/
+├── data/
+│   ├── loader.py          # Load & prepare data FPT
+│   └── dataset.py         # TimeSeriesDataset cho GRU
+├── model/
+│   └── gru_model.py       # GRUModel demo
+├── training/
+│   └── trainer.py         # Training loop + early stopping
+├── utils/
+│   ├── config.py          # Config mặc định cho GRU demo
+│   └── predict.py         # Hàm evaluate & predict future
+└── streamlit_app.py       # Ứng dụng Streamlit
+```
+
+Chi tiết hơn xem thêm `README_STREAMLIT.md`.
