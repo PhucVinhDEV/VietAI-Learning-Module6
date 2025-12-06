@@ -24,10 +24,18 @@ else:
 if str(project_root) not in sys.path:
     sys.path.insert(0, str(project_root))
 
+# Debug: Check if we can find data file (only in development, comment out in production)
+# Uncomment these lines if you need to debug path issues:
+# st.sidebar.info(f"Project root: {project_root}")
+# st.sidebar.info(f"Data file exists: {(project_root / 'data' / 'raw' / 'FPT_train.csv').exists()}")
+
 from src.data import load_fpt_data, prepare_data, TimeSeriesDataset
 from src.model import GRUModel
-from src.utils import CONFIG, predict_future, evaluate_model, load_checkpoint
+from src.utils import CONFIG, SEED, set_seed, predict_future, evaluate_model, load_checkpoint
 from torch.utils.data import DataLoader
+
+# Set random seed for reproducibility
+set_seed(SEED)
 
 # Page config
 st.set_page_config(
