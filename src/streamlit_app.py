@@ -9,6 +9,17 @@ import torch
 from pathlib import Path
 import sys
 import os
+import logging
+
+# Setup logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    handlers=[
+        logging.StreamHandler(sys.stdout)
+    ]
+)
+logger = logging.getLogger(__name__)
 
 # Add project root to path
 # Always calculate from file location: src/streamlit_app.py -> go up 2 levels
@@ -99,28 +110,37 @@ Python path: {sys.path[:3]}
                     del st.session_state['data_error']
                 
                 try:
+                    logger.info(f"Loading data from project root: {project_root}")
                     df = load_fpt_data()
+                    logger.info(f"Data loaded: {len(df)} records")
+                    
                     if df is None or df.empty:
                         raise ValueError("Loaded DataFrame is empty")
                     
                     st.session_state['df'] = df
                     
                     # Prepare data ngay khi load để đảm bảo consistency với notebook
+                    logger.info("Preparing data...")
                     df_processed = prepare_data(df)
+                    logger.info(f"Data prepared: {len(df_processed)} records")
+                    
                     if df_processed is None or df_processed.empty:
                         raise ValueError("Processed DataFrame is empty")
                     
                     st.session_state['df_processed'] = df_processed
                     st.success(f"✅ Data loaded successfully! ({len(df_processed)} records)")
+                    logger.info("Data loaded and prepared successfully")
                     
                 except FileNotFoundError as e:
                     error_msg = f"❌ File not found: {e}"
+                    logger.error(f"FileNotFoundError: {e}", exc_info=True)
                     st.error(error_msg)
                     st.session_state['data_error'] = error_msg
                     st.info("💡 Đảm bảo file `data/raw/FPT_train.csv` tồn tại trong repository.")
                     
                     # Debug info
                     data_path = project_root / "data" / "raw" / "FPT_train.csv"
+                    logger.error(f"Data path check: {data_path} exists={data_path.exists()}")
                     st.code(f"""
 Current directory: {Path.cwd()}
 Project root: {project_root}
@@ -130,6 +150,7 @@ Path exists: {data_path.exists()}
                     
                 except Exception as e:
                     error_msg = f"❌ Error loading data: {e}"
+                    logger.error(f"Error loading data: {e}", exc_info=True)
                     st.error(error_msg)
                     st.session_state['data_error'] = error_msg
                     import traceback
@@ -295,15 +316,34 @@ with tab2:
     
     if st.button("Load Checkpoint", key="load_checkpoint"):
         with st.spinner("Loading checkpoint..."):
+            checkpoint_path_obj = None
             try:
+                # Resolve path: nếu là relative path, resolve từ project_root
                 checkpoint_path_obj = Path(checkpoint_path)
+                if not checkpoint_path_obj.is_absolute():
+                    # Relative path - resolve từ project_root
+                    checkpoint_path_obj = project_root / checkpoint_path
+                
+                # Normalize path
+                checkpoint_path_obj = checkpoint_path_obj.resolve()
+                
+                logger.info(f"Loading checkpoint from: {checkpoint_path_obj}")
+                
                 if not checkpoint_path_obj.exists():
-                    st.error(f"❌ Checkpoint not found: {checkpoint_path}")
+                    logger.error(f"Checkpoint not found: {checkpoint_path_obj}")
+                    st.error(f"❌ Checkpoint not found: {checkpoint_path_obj}")
                     st.info("💡 Hãy chạy script train trước: `python scripts/train_fpt_gru.py`")
+                    st.code(f"""
+Expected path: {checkpoint_path_obj}
+Project root: {project_root}
+Current dir: {Path.cwd()}
+                    """)
                 else:
                     # Load checkpoint
                     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+                    logger.info(f"Loading checkpoint on device: {device}")
                     checkpoint = load_checkpoint(checkpoint_path_obj, device=device)
+                    logger.info("Checkpoint loaded successfully")
                     
                     # Extract info
                     model_config = checkpoint['config']
@@ -322,8 +362,10 @@ with tab2:
                     ).to(device)
                     
                     # Load weights
+                    logger.info("Loading model weights...")
                     model.load_state_dict(checkpoint['model_state_dict'])
                     model.eval()
+                    logger.info("Model weights loaded and set to eval mode")
                     
                     # Save to session state
                     st.session_state['model'] = model
@@ -333,6 +375,7 @@ with tab2:
                     st.session_state['train_losses'] = train_losses
                     st.session_state['val_losses'] = val_losses
                     
+                    logger.info(f"Model loaded: MAPE={metrics.get('mape', 'N/A'):.2f}%")
                     st.success(f"✅ Model loaded successfully!")
                     
                     # Show model metrics
@@ -383,13 +426,32 @@ with tab2:
                     ax.set_title('Training & Validation Loss')
                     ax.legend()
                     ax.grid(True, alpha=0.3)
-                    st.pyplot(fig)
+                    st.pyplot(fig, use_container_width=True)
+                    plt.close(fig)  # Close figure to free memory
                     
-                    
-            except Exception as e:
-                st.error(f"Error loading checkpoint: {e}")
+            except FileNotFoundError as e:
+                logger.error(f"Checkpoint file not found: {e}", exc_info=True)
+                st.error(f"❌ Checkpoint file not found: {e}")
+                st.info("💡 Đảm bảo file checkpoint tồn tại và đường dẫn chính xác.")
+                st.code(f"""
+Current directory: {Path.cwd()}
+Project root: {project_root}
+Checkpoint path: {checkpoint_path}
+Resolved path: {checkpoint_path_obj if checkpoint_path_obj is not None else 'N/A'}
+                """)
+            except KeyError as e:
+                logger.error(f"Checkpoint file missing key: {e}", exc_info=True)
+                st.error(f"❌ Checkpoint file thiếu thông tin: {e}")
+                st.info("💡 File checkpoint có thể bị hỏng hoặc không đúng format.")
                 import traceback
-                st.code(traceback.format_exc())
+                with st.expander("🔍 Error Details"):
+                    st.code(traceback.format_exc())
+            except Exception as e:
+                logger.error(f"Error loading checkpoint: {e}", exc_info=True)
+                st.error(f"❌ Error loading checkpoint: {e}")
+                import traceback
+                with st.expander("🔍 Error Details"):
+                    st.code(traceback.format_exc())
     
     # Show instructions
     if 'model' not in st.session_state:
@@ -420,12 +482,14 @@ with tab3:
         if st.button("Generate Prediction", key="predict"):
             with st.spinner("Generating predictions..."):
                 try:
+                    logger.info("Starting prediction generation...")
                     model = st.session_state['model']
                     scaler = st.session_state['scaler']
                     model_config = st.session_state['model_config']
                     
                     # Sử dụng df_processed đã được prepare (giống notebook)
                     if 'df_processed' not in st.session_state:
+                        logger.info("Preparing data for prediction...")
                         df = st.session_state['df']
                         df_processed = prepare_data(df)
                         st.session_state['df_processed'] = df_processed
@@ -434,14 +498,17 @@ with tab3:
                     
                     # Get history - dùng toàn bộ df_processed giống notebook
                     history = df_processed["close_log"].tolist()
+                    logger.info(f"History length: {len(history)}, Predicting {total_predict_days} days")
                     
                     # Predict
                     device = model_config['device']
+                    logger.info(f"Using device: {device}")
                     pred_close = predict_future(
                         model, history, scaler,
                         model_config["input_len"], total_predict_days,
                         device
                     )
+                    logger.info(f"Prediction completed: {len(pred_close)} predictions generated")
                     
                 
                     st.session_state['pred_close'] = pred_close
@@ -499,7 +566,9 @@ with tab3:
                     )
                     
                 except Exception as e:
-                    st.error(f"Error during prediction: {e}")
+                    logger.error(f"Error generating predictions: {e}", exc_info=True)
+                    st.error(f"❌ Error generating predictions: {e}")
                     import traceback
-                    st.code(traceback.format_exc())
+                    with st.expander("🔍 Error Details"):
+                        st.code(traceback.format_exc())
 
