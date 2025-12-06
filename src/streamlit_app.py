@@ -29,13 +29,22 @@ if str(project_root) not in sys.path:
 # st.sidebar.info(f"Project root: {project_root}")
 # st.sidebar.info(f"Data file exists: {(project_root / 'data' / 'raw' / 'FPT_train.csv').exists()}")
 
-from src.data import load_fpt_data, prepare_data, TimeSeriesDataset
-from src.model import GRUModel
-from src.utils import CONFIG, SEED, set_seed, predict_future, evaluate_model, load_checkpoint
-from torch.utils.data import DataLoader
-
-# Set random seed for reproducibility
-set_seed(SEED)
+try:
+    from src.data import load_fpt_data, prepare_data, TimeSeriesDataset
+    from src.model import GRUModel
+    from src.utils import CONFIG, SEED, set_seed, predict_future, evaluate_model, load_checkpoint
+    from torch.utils.data import DataLoader
+    
+    # Set random seed for reproducibility
+    set_seed(SEED)
+except Exception as e:
+    import streamlit as st
+    st.set_page_config(page_title="Error", page_icon="❌", layout="wide")
+    st.error(f"❌ Error importing modules: {e}")
+    import traceback
+    with st.expander("🔍 Error Details"):
+        st.code(traceback.format_exc())
+    st.stop()
 
 # Page config
 st.set_page_config(
@@ -70,43 +79,121 @@ tab1, tab2, tab3 = st.tabs(["📊 Data Overview", "📥 Load Model", "🔮 Predi
 with tab1:
     st.header("Data Overview")
     
+    # Debug info (có thể bật/tắt)
+    show_debug = st.sidebar.checkbox("Show Debug Info", value=False)
+    
+    if show_debug:
+        with st.expander("🔍 Debug Information", expanded=False):
+            st.code(f"""
+Project root: {project_root}
+Current dir: {Path.cwd()}
+Data file exists: {(project_root / 'data' / 'raw' / 'FPT_train.csv').exists()}
+Python path: {sys.path[:3]}
+            """)
+    
     if st.button("Load Data", key="load_data"):
-        with st.spinner("Loading data..."):
-            try:
-                df = load_fpt_data()
-                st.session_state['df'] = df
-                # Prepare data ngay khi load để đảm bảo consistency với notebook
-                df_processed = prepare_data(df)
-                st.session_state['df_processed'] = df_processed
-                st.success("Data loaded successfully!")
-            except FileNotFoundError as e:
-                st.error(f"❌ File not found: {e}")
-                st.info("💡 Đảm bảo file `data/raw/FPT_train.csv` tồn tại trong repository.")
-                st.code(f"Current directory: {Path.cwd()}\nProject root: {project_root}")
-            except Exception as e:
-                st.error(f"❌ Error loading data: {e}")
-                import traceback
-                with st.expander("🔍 Error Details"):
-                    st.code(traceback.format_exc())
+        try:
+            with st.spinner("Loading data..."):
+                # Clear previous errors
+                if 'data_error' in st.session_state:
+                    del st.session_state['data_error']
+                
+                try:
+                    df = load_fpt_data()
+                    if df is None or df.empty:
+                        raise ValueError("Loaded DataFrame is empty")
+                    
+                    st.session_state['df'] = df
+                    
+                    # Prepare data ngay khi load để đảm bảo consistency với notebook
+                    df_processed = prepare_data(df)
+                    if df_processed is None or df_processed.empty:
+                        raise ValueError("Processed DataFrame is empty")
+                    
+                    st.session_state['df_processed'] = df_processed
+                    st.success(f"✅ Data loaded successfully! ({len(df_processed)} records)")
+                    
+                except FileNotFoundError as e:
+                    error_msg = f"❌ File not found: {e}"
+                    st.error(error_msg)
+                    st.session_state['data_error'] = error_msg
+                    st.info("💡 Đảm bảo file `data/raw/FPT_train.csv` tồn tại trong repository.")
+                    
+                    # Debug info
+                    data_path = project_root / "data" / "raw" / "FPT_train.csv"
+                    st.code(f"""
+Current directory: {Path.cwd()}
+Project root: {project_root}
+Expected path: {data_path}
+Path exists: {data_path.exists()}
+                    """)
+                    
+                except Exception as e:
+                    error_msg = f"❌ Error loading data: {e}"
+                    st.error(error_msg)
+                    st.session_state['data_error'] = error_msg
+                    import traceback
+                    with st.expander("🔍 Error Details"):
+                        st.code(traceback.format_exc())
+        except Exception as e:
+            st.error(f"❌ Unexpected error in Load Data button: {e}")
+            import traceback
+            with st.expander("🔍 Error Details"):
+                st.code(traceback.format_exc())
+    
+    # Show error if any
+    if 'data_error' in st.session_state:
+        st.error(st.session_state['data_error'])
+        st.info("💡 Hãy thử load data lại hoặc kiểm tra file data có tồn tại không.")
     
     if 'df' in st.session_state:
         try:
             df = st.session_state['df']
             
+            if df is None or df.empty:
+                st.warning("⚠️ Data is empty. Please reload data.")
+                st.stop()
+            
             # Prepare data ngay khi load để đảm bảo consistency
             if 'df_processed' not in st.session_state:
-                df_processed = prepare_data(df)
-                st.session_state['df_processed'] = df_processed
+                try:
+                    df_processed = prepare_data(df)
+                    st.session_state['df_processed'] = df_processed
+                except Exception as e:
+                    st.error(f"❌ Error preparing data: {e}")
+                    import traceback
+                    with st.expander("🔍 Error Details"):
+                        st.code(traceback.format_exc())
+                    st.stop()
             else:
                 df_processed = st.session_state['df_processed']
+            
+            if df_processed is None or df_processed.empty:
+                st.warning("⚠️ Processed data is empty. Please reload data.")
+                st.stop()
+            
+            # Validate required columns
+            required_cols = ['time', 'close', 'close_log']
+            missing_cols = [col for col in required_cols if col not in df_processed.columns]
+            if missing_cols:
+                st.error(f"❌ Missing required columns: {missing_cols}")
+                st.stop()
             
             col1, col2, col3 = st.columns(3)
             with col1:
                 st.metric("Total Records", len(df_processed))
             with col2:
-                st.metric("Date Range", f"{df_processed['time'].min().date()} to {df_processed['time'].max().date()}")
+                try:
+                    date_range = f"{df_processed['time'].min().date()} to {df_processed['time'].max().date()}"
+                    st.metric("Date Range", date_range)
+                except Exception as e:
+                    st.metric("Date Range", "N/A")
             with col3:
-                st.metric("Current Price", f"${df_processed['close'].iloc[-1]:.2f}")
+                try:
+                    current_price = f"${df_processed['close'].iloc[-1]:.2f}"
+                    st.metric("Current Price", current_price)
+                except Exception as e:
+                    st.metric("Current Price", "N/A")
             
             # View options
             col_view1, col_view2 = st.columns(2)
