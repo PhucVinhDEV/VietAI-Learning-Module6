@@ -11,15 +11,31 @@ import sys
 import os
 import logging
 
-# Setup logging
+# Setup logging - Streamlit Cloud captures stderr better than stdout
+# Also use print() for critical messages as Streamlit Cloud shows print() output
 logging.basicConfig(
     level=logging.INFO,
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
     handlers=[
-        logging.StreamHandler(sys.stdout)
-    ]
+        logging.StreamHandler(sys.stderr)  # Use stderr for Streamlit Cloud
+    ],
+    force=True  # Force reconfiguration
 )
 logger = logging.getLogger(__name__)
+
+# Helper function to log and print (for Streamlit Cloud visibility)
+def log_info(message, *args, **kwargs):
+    """Log INFO message and also print for Streamlit Cloud."""
+    logger.info(message, *args, **kwargs)
+    print(f"[INFO] {message}", file=sys.stderr, flush=True)
+
+def log_error(message, *args, exc_info=False, **kwargs):
+    """Log ERROR message and also print for Streamlit Cloud."""
+    logger.error(message, *args, exc_info=exc_info, **kwargs)
+    print(f"[ERROR] {message}", file=sys.stderr, flush=True)
+    if exc_info:
+        import traceback
+        print(traceback.format_exc(), file=sys.stderr, flush=True)
 
 # Add project root to path
 # Always calculate from file location: src/streamlit_app.py -> go up 2 levels
@@ -110,9 +126,9 @@ Python path: {sys.path[:3]}
                     del st.session_state['data_error']
                 
                 try:
-                    logger.info(f"Loading data from project root: {project_root}")
+                    log_info(f"Loading data from project root: {project_root}")
                     df = load_fpt_data()
-                    logger.info(f"Data loaded: {len(df)} records")
+                    log_info(f"Data loaded: {len(df)} records")
                     
                     if df is None or df.empty:
                         raise ValueError("Loaded DataFrame is empty")
@@ -120,20 +136,20 @@ Python path: {sys.path[:3]}
                     st.session_state['df'] = df
                     
                     # Prepare data ngay khi load để đảm bảo consistency với notebook
-                    logger.info("Preparing data...")
+                    log_info("Preparing data...")
                     df_processed = prepare_data(df)
-                    logger.info(f"Data prepared: {len(df_processed)} records")
+                    log_info(f"Data prepared: {len(df_processed)} records")
                     
                     if df_processed is None or df_processed.empty:
                         raise ValueError("Processed DataFrame is empty")
                     
                     st.session_state['df_processed'] = df_processed
                     st.success(f"✅ Data loaded successfully! ({len(df_processed)} records)")
-                    logger.info("Data loaded and prepared successfully")
+                    log_info("Data loaded and prepared successfully")
                     
                 except FileNotFoundError as e:
                     error_msg = f"❌ File not found: {e}"
-                    logger.error(f"FileNotFoundError: {e}", exc_info=True)
+                    log_error(f"FileNotFoundError: {e}", exc_info=True)
                     st.error(error_msg)
                     st.session_state['data_error'] = error_msg
                     st.info("💡 Đảm bảo file `data/raw/FPT_train.csv` tồn tại trong repository.")
@@ -150,7 +166,7 @@ Path exists: {data_path.exists()}
                     
                 except Exception as e:
                     error_msg = f"❌ Error loading data: {e}"
-                    logger.error(f"Error loading data: {e}", exc_info=True)
+                    log_error(f"Error loading data: {e}", exc_info=True)
                     st.error(error_msg)
                     st.session_state['data_error'] = error_msg
                     import traceback
@@ -327,10 +343,10 @@ with tab2:
                 # Normalize path
                 checkpoint_path_obj = checkpoint_path_obj.resolve()
                 
-                logger.info(f"Loading checkpoint from: {checkpoint_path_obj}")
+                log_info(f"Loading checkpoint from: {checkpoint_path_obj}")
                 
                 if not checkpoint_path_obj.exists():
-                    logger.error(f"Checkpoint not found: {checkpoint_path_obj}")
+                    log_error(f"Checkpoint not found: {checkpoint_path_obj}")
                     st.error(f"❌ Checkpoint not found: {checkpoint_path_obj}")
                     st.info("💡 Hãy chạy script train trước: `python scripts/train_fpt_gru.py`")
                     st.code(f"""
@@ -341,9 +357,9 @@ Current dir: {Path.cwd()}
                 else:
                     # Load checkpoint
                     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-                    logger.info(f"Loading checkpoint on device: {device}")
+                    log_info(f"Loading checkpoint on device: {device}")
                     checkpoint = load_checkpoint(checkpoint_path_obj, device=device)
-                    logger.info("Checkpoint loaded successfully")
+                    log_info("Checkpoint loaded successfully")
                     
                     # Extract info
                     model_config = checkpoint['config']
@@ -362,10 +378,10 @@ Current dir: {Path.cwd()}
                     ).to(device)
                     
                     # Load weights
-                    logger.info("Loading model weights...")
+                    log_info("Loading model weights...")
                     model.load_state_dict(checkpoint['model_state_dict'])
                     model.eval()
-                    logger.info("Model weights loaded and set to eval mode")
+                    log_info("Model weights loaded and set to eval mode")
                     
                     # Save to session state
                     st.session_state['model'] = model
@@ -375,7 +391,7 @@ Current dir: {Path.cwd()}
                     st.session_state['train_losses'] = train_losses
                     st.session_state['val_losses'] = val_losses
                     
-                    logger.info(f"Model loaded: MAPE={metrics.get('mape', 'N/A'):.2f}%")
+                    log_info(f"Model loaded: MAPE={metrics.get('mape', 'N/A'):.2f}%")
                     st.success(f"✅ Model loaded successfully!")
                     
                     # Show model metrics
@@ -430,7 +446,7 @@ Current dir: {Path.cwd()}
                     plt.close(fig)  # Close figure to free memory
                     
             except FileNotFoundError as e:
-                logger.error(f"Checkpoint file not found: {e}", exc_info=True)
+                log_error(f"Checkpoint file not found: {e}", exc_info=True)
                 st.error(f"❌ Checkpoint file not found: {e}")
                 st.info("💡 Đảm bảo file checkpoint tồn tại và đường dẫn chính xác.")
                 st.code(f"""
@@ -440,14 +456,14 @@ Checkpoint path: {checkpoint_path}
 Resolved path: {checkpoint_path_obj if checkpoint_path_obj is not None else 'N/A'}
                 """)
             except KeyError as e:
-                logger.error(f"Checkpoint file missing key: {e}", exc_info=True)
+                log_error(f"Checkpoint file missing key: {e}", exc_info=True)
                 st.error(f"❌ Checkpoint file thiếu thông tin: {e}")
                 st.info("💡 File checkpoint có thể bị hỏng hoặc không đúng format.")
                 import traceback
                 with st.expander("🔍 Error Details"):
                     st.code(traceback.format_exc())
             except Exception as e:
-                logger.error(f"Error loading checkpoint: {e}", exc_info=True)
+                log_error(f"Error loading checkpoint: {e}", exc_info=True)
                 st.error(f"❌ Error loading checkpoint: {e}")
                 import traceback
                 with st.expander("🔍 Error Details"):
@@ -482,14 +498,14 @@ with tab3:
         if st.button("Generate Prediction", key="predict"):
             with st.spinner("Generating predictions..."):
                 try:
-                    logger.info("Starting prediction generation...")
+                    log_info("Starting prediction generation...")
                     model = st.session_state['model']
                     scaler = st.session_state['scaler']
                     model_config = st.session_state['model_config']
                     
                     # Sử dụng df_processed đã được prepare (giống notebook)
                     if 'df_processed' not in st.session_state:
-                        logger.info("Preparing data for prediction...")
+                        log_info("Preparing data for prediction...")
                         df = st.session_state['df']
                         df_processed = prepare_data(df)
                         st.session_state['df_processed'] = df_processed
@@ -498,17 +514,17 @@ with tab3:
                     
                     # Get history - dùng toàn bộ df_processed giống notebook
                     history = df_processed["close_log"].tolist()
-                    logger.info(f"History length: {len(history)}, Predicting {total_predict_days} days")
+                    log_info(f"History length: {len(history)}, Predicting {total_predict_days} days")
                     
                     # Predict
                     device = model_config['device']
-                    logger.info(f"Using device: {device}")
+                    log_info(f"Using device: {device}")
                     pred_close = predict_future(
                         model, history, scaler,
                         model_config["input_len"], total_predict_days,
                         device
                     )
-                    logger.info(f"Prediction completed: {len(pred_close)} predictions generated")
+                    log_info(f"Prediction completed: {len(pred_close)} predictions generated")
                     
                 
                     st.session_state['pred_close'] = pred_close
@@ -566,7 +582,7 @@ with tab3:
                     )
                     
                 except Exception as e:
-                    logger.error(f"Error generating predictions: {e}", exc_info=True)
+                    log_error(f"Error generating predictions: {e}", exc_info=True)
                     st.error(f"❌ Error generating predictions: {e}")
                     import traceback
                     with st.expander("🔍 Error Details"):

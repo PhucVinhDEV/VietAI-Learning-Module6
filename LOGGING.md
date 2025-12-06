@@ -2,6 +2,18 @@
 
 ## 🔍 Xem Logs trên Streamlit Cloud
 
+### ⚠️ Lưu ý quan trọng
+
+Streamlit Cloud hiển thị logs từ:
+- **stderr** (standard error) - được capture tốt nhất
+- **print() statements** - hiển thị trong logs
+- **Python logging module** - nếu output đến stderr
+
+Code đã được cấu hình để:
+- ✅ Logging output đến `sys.stderr`
+- ✅ Sử dụng `print()` với `flush=True` để đảm bảo logs hiển thị ngay
+- ✅ Format: `[INFO]` hoặc `[ERROR]` prefix cho dễ nhận biết
+
 ### Cách 1: Qua Dashboard (Khuyến nghị)
 
 1. **Truy cập Streamlit Cloud Dashboard**
@@ -10,22 +22,68 @@
 
 2. **Xem Logs**
    - Click vào app → **"Manage app"** (hoặc icon ⚙️)
-   - Chọn tab **"Logs"**
+   - Chọn tab **"Logs"** hoặc **"Runtime logs"**
    - Xem real-time logs hoặc scroll để xem logs cũ
 
-3. **Filter Logs**
-   - Có thể filter theo level: INFO, WARNING, ERROR
-   - Search logs bằng từ khóa
+3. **Tìm logs của bạn**
+   - Tìm các dòng có prefix `[INFO]` hoặc `[ERROR]`
+   - Ví dụ:
+     ```
+     [INFO] Loading data from project root: /mount/src/vietai-learning-module6
+     [INFO] Data loaded: 1149 records
+     [ERROR] FileNotFoundError: Checkpoint not found
+     ```
 
-### Cách 2: Qua Terminal (Nếu có SSH access)
+4. **Filter Logs**
+   - Có thể search logs bằng từ khóa: `[INFO]`, `[ERROR]`, `Loading`, etc.
+   - Streamlit Cloud logs thường hiển thị cả stdout và stderr
 
-```bash
-# Xem logs real-time
-tail -f /path/to/streamlit/logs/app.log
+### Cách 2: Debug trong App (Nếu logs không hiển thị)
 
-# Xem logs với filter
-grep ERROR /path/to/streamlit/logs/app.log
+Nếu logs không hiển thị trên Streamlit Cloud, có thể thêm debug panel trong app:
+
+```python
+# Thêm vào sidebar
+if st.sidebar.checkbox("Show Debug Logs"):
+    st.sidebar.subheader("📋 Recent Logs")
+    # Hiển thị logs từ session state hoặc file
+    if 'app_logs' in st.session_state:
+        st.sidebar.text_area("Logs", st.session_state['app_logs'], height=200)
 ```
+
+### Cách 3: Kiểm tra Logs qua Browser Console
+
+1. Mở Developer Tools (F12)
+2. Vào tab **Console**
+3. Streamlit có thể log một số thông tin ở đây
+
+### Troubleshooting: Logs không hiển thị
+
+**Vấn đề**: Logs không xuất hiện trên Streamlit Cloud
+
+**Giải pháp**:
+
+1. **Kiểm tra code đã dùng `print()` với `flush=True`**:
+   ```python
+   print(f"[INFO] Message", file=sys.stderr, flush=True)
+   ```
+
+2. **Đảm bảo logging output đến stderr**:
+   ```python
+   logging.StreamHandler(sys.stderr)  # Not stdout
+   ```
+
+3. **Kiểm tra trong Streamlit Cloud Dashboard**:
+   - Vào "Manage app" → "Logs"
+   - Scroll xuống để xem logs cũ
+   - Refresh page nếu cần
+
+4. **Thử thêm explicit print statements**:
+   ```python
+   print("=" * 50, file=sys.stderr, flush=True)
+   print("APP STARTED", file=sys.stderr, flush=True)
+   print("=" * 50, file=sys.stderr, flush=True)
+   ```
 
 ## 🖥️ Xem Logs khi chạy Local
 
